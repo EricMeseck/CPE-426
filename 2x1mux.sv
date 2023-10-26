@@ -1,4 +1,6 @@
 `timescale 1ns / 1ps
+(* keep="true" *)
+(* dont_touch = "true" *)
 
 module mux_2x1(
     input logic a,

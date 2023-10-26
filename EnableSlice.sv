@@ -1,4 +1,6 @@
 `timescale 1ns / 1ps
+(* keep="true" *)
+(* dont_touch = "true" *)
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: 
@@ -21,7 +23,6 @@
 
 
 module EnableSlice(
-    input CLK,
     input logic a,
     input logic b,
     input logic sel,
@@ -32,12 +33,10 @@ module EnableSlice(
     );
     //Make sure that the mux inputs are good
     logic lutOut1, lutOut2;
-    EnableLUT lutto1(b, a, sel, en, lutOut1);
-    EnableLUT lutto2(b, a, sel, en, lutOut2);
-    mux_2x1 muxy1(lutOut1, lutOut2, bx, outA);
-    always_ff @ (CLK) begin
-        if (CLK == 1) begin
+    EnableLUT lutto1(b, a, sel, en, lutOut1) /* synthesis keep */;
+    EnableLUT lutto2(b, a, sel, en, lutOut2) /* synthesis keep */;
+    mux_2x1 muxy1(lutOut1, lutOut2, bx, outA) /* synthesis keep */;
+    always_latch begin
         outB = outA;
-        end
     end 
 endmodule
