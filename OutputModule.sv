@@ -23,7 +23,9 @@
 module OutputModule(
     input CLK, BTNC,
     input [15:0] SWITCHES,
-    output logic [15:0] LEDS
+    output logic [15:0] LEDS,
+    output [3:0] ANODES,
+    output [7:0] CATHODES
     );
     logic [31:0] count = 0; 
     logic [31:0] clkCount = 0;
@@ -34,7 +36,10 @@ module OutputModule(
     logic [7:0] response;
     logic [8:0] ro_enable;
     logic [8:0] out, xout;
-    logic countEN = 0, clkEN = 0;
+    logic countEN = 0, clkEN = 0, hashRes = 0, hashSt = 0, hashRd;
+    logic [127:0] hashVal;
+    logic [15:0] [7:0] hashBytes;
+    logic [15:0] segData = 0;
     typedef enum logic [2:0] {
         st_WAIT,
         st_SEL,
@@ -44,6 +49,8 @@ module OutputModule(
         st_COMP
         } state_type;
    state_type state = st_WAIT;
+    sseg_des sevSeg(segData, CLK, 1, ANODES, CATHODES);
+    sha128_simple shah(CLK, {2'b00, challenge, response}, hashRes, hashSt, hashRd, hashVal);
     
     RingOsc ringo0(challenge[2:0], challenge[5:3], !ro_enable[0], out[0], xout[0]) /* synthesis keep */;
     RingOsc ringo1(challenge[2:0], challenge[5:3], !ro_enable[1], out[1], xout[1]) /* synthesis keep */;
@@ -66,7 +73,6 @@ module OutputModule(
             clkCount += 1;
         end
         else begin clkCount = 0; end
-   
         case (state)
             st_WAIT: begin
                 if ((challenge != SWITCHES[5:0]) || BTNC) begin
@@ -75,8 +81,31 @@ module OutputModule(
                     ro_index = 0;
                     ro_enable = 1;
                     LEDS[14] = 0;
+                    LEDS[15] = 0;
                     clkEN = 1;
                     countEN = 1;
+                    hashSt = 0;
+                end
+                else if (hashRd) begin
+                    LEDS[15] = 1;
+                    hashSt = 0;
+                    if(SWITCHES[15:12] > 8) begin
+                        segData = 0;
+                    end
+                    else if (SWITCHES[15:12] > 0) begin
+                        for (int i = 0; i < 16; i++) begin
+                            hashBytes[i] = hashVal[8*i +: 8];
+                        end
+                        segData = {hashBytes[SWITCHES[15:12]*2-1], hashBytes[SWITCHES[15:12]*2-2]};
+                    end
+                    else begin
+                        segData = {response, 2'b00, challenge};
+                    end
+                end
+                else begin 
+                    LEDS[15] = 0; 
+                    segData = {response, 2'b00, challenge};
+                    hashSt  = 0;
                 end
             end
             st_COUNT: begin 
@@ -93,7 +122,9 @@ module OutputModule(
                     ro_index++;
                     state = st_STALL;  
                 end
-                else begin state = st_COMP; end
+                else begin 
+                    state = st_COMP; 
+                end
             end
             st_STALL: begin
                 clkEN = 1;
@@ -106,9 +137,12 @@ module OutputModule(
                 end
                 LEDS[14] = 1;
                 LEDS[7:0] = response;
+                segData = {response, 2'b00, challenge};
+                hashSt = 1;
                 state = st_WAIT;
             end
         endcase
    end
     
 endmodule
+
