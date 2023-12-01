@@ -1,0 +1,23 @@
+.data
+.eqv LEDS, 0x11080000 # Stored in x29, do not change that register
+.eqv SSEG, 0x110c0000 # Stored in x30, do not change that register
+.eqv SWITCHES, 0x11000000 #Stored in x28, do not change that register
+.text
+li x28, SWITCHES
+li x29, LEDS
+li x30, SSEG
+li x5 3
+big_loop:
+li x21, 0x8000  #Initializes first LED if it is zero
+main_loop:
+li x19, 1
+li x3, 3111116  # num for delay being stored in x3
+bnez x21, reset_led  # if leds are zero, reset LED
+li x21, 0x8000  #Initializes first LED if it is zero
+addi x5, x5, -1
+bnez x5, big_loop
+li x5 3
+reset_led:
+sw x21, 0(x29) #Display new LED value
+srli x21, x21, 1  #shift LED value right
+j main_loop
